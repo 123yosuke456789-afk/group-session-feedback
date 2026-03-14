@@ -20,6 +20,9 @@
 # production
 /build
 
+# 開発用セッション保存ファイル（再起動してもセッションが残る）
+.data/
+
 # misc
 .DS_Store
 *.pem

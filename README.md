@@ -1,36 +1,60 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# グループセッション｜作品フィードバックツール
 
-## Getting Started
+オンラインスクールのグループセッションで、作品URLを共有し、**特定の箇所を指定してコメント**を書き、みんなでフィードバックを共有するためのツールです。
 
-First, run the development server:
+**実験〜本番までの進め方:** [PLAN.md](./PLAN.md) に最終目的・Phase 0（実験）→ Phase 1（Vercel デプロイ）→ Phase 2（オプション）のプランをまとめています。
+
+## できること
+
+- **作品URLを1つ共有**してセッションを作成
+- 参加者全員が**同じ画面**で作品を閲覧
+- 作品上を**クリックした位置にピン**を打ち、その場所へのコメントを追加
+- コメント一覧で**誰が・どこに・何を**書いたかまとめて確認
+- **招待リンクをコピー**して、セッションIDを共有せずに参加者を招待
+
+## 使い方
+
+### 1. 起動
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+ブラウザで [http://localhost:3000](http://localhost:3000) を開く。
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 2. セッションを作成（作品を共有する人）
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- トップで「作品のURL」に共有したいページのURLを入力（例: 自分のポートフォリオ、Figma、GitHub など）
+- 任意で「セッション名」を入力
+- 「セッションを作成」をクリック
 
-## Learn More
+### 3. 参加者を招待
 
-To learn more about Next.js, take a look at the following resources:
+- フィードバック画面の「招待リンクをコピー」を押す
+- グループチャットやメールでそのリンクを貼って送る
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### 4. フィードバックを書く（参加者全員）
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- 作品が表示されているエリアの**コメントしたい場所をクリック**
+- 右側のフォームに名前（任意）とコメントを入力して「送信」
+- 同じセッションを開いている人には、約5秒ごとに自動でコメントが反映される
 
-## Deploy on Vercel
+### 5. コメントを読む
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- 作品上の**黄色いピン**をクリックすると、その位置のコメントが強調表示される
+- 右側の一覧で全コメントをスクロールして確認できる
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 技術
+
+- **Next.js 16** (App Router) + TypeScript + Tailwind CSS
+- セッション・コメントは**メモリ上**に保存（再起動で消えます。本番運用時は DB やファイル永続化を推奨）
+
+## 注意
+
+- 作品のURLは **iframe** で表示します。`X-Frame-Options: DENY` などで埋め込みを禁止しているサイトは表示できません。その場合は「このURLは埋め込みできません」などの表示になることがあります。
+- その場合は、**スクリーンショットを画像URLとして共有**する、または **Figma / Google Docs など埋め込み許可しているURL** を使うとスムーズです。
+
+## ライセンス
+
+MIT
