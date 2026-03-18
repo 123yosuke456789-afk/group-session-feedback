@@ -12,7 +12,7 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
-    const session = createSession(url, title || undefined);
+    const session = await createSession(url, title || undefined);
     return NextResponse.json(session);
   } catch {
     return NextResponse.json(

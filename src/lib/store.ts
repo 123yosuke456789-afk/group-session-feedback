@@ -1,7 +1,6 @@
-// セッション・コメントの保存（開発中はファイルに保存して再起動でも残す）
-
-import fs from "fs";
-import path from "path";
+// セッション・コメントの保存
+// 本番（Vercel）: Upstash Redis を使用
+// 開発（ローカル）: Redis 環境変数がなければメモリに保存
 
 export type Comment = {
   id: string;
@@ -20,38 +19,45 @@ export type Session = {
   createdAt: string;
 };
 
-const sessions = new Map<string, Session>();
-
-const DATA_DIR = path.join(process.cwd(), ".data");
-const SESSIONS_FILE = path.join(DATA_DIR, "sessions.json");
-
 function generateId(): string {
   return Math.random().toString(36).slice(2, 10);
 }
 
-function loadFromFile(): void {
-  try {
-    const data = fs.readFileSync(SESSIONS_FILE, "utf-8");
-    const arr: Session[] = JSON.parse(data);
-    sessions.clear();
-    for (const s of arr) sessions.set(s.id, s);
-  } catch {
-    // ファイルが無い・読めない場合は何もしない（メモリのまま）
-  }
+// Redis が設定されているか（本番 Vercel では自動で入る）
+// Vercel の Upstash 統合は KV_REST_API_URL / KV_REST_API_TOKEN という名前で環境変数を追加する
+const REDIS_URL =
+  process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
+const REDIS_TOKEN =
+  process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
+
+const isRedisConfigured = Boolean(REDIS_URL && REDIS_TOKEN);
+
+// ローカル開発用メモリストア（再起動で消えるが開発用途には十分）
+const memoryStore = new Map<string, Session>();
+
+async function getRedisClient() {
+  const { Redis } = await import("@upstash/redis");
+  return new Redis({ url: REDIS_URL!, token: REDIS_TOKEN! });
 }
 
-function saveToFile(): void {
-  try {
-    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-    const arr = Array.from(sessions.values());
-    fs.writeFileSync(SESSIONS_FILE, JSON.stringify(arr, null, 2), "utf-8");
-  } catch {
-    // 保存失敗は無視（メモリには残っている）
-  }
+async function redisGet(key: string): Promise<Session | null> {
+  const redis = await getRedisClient();
+  const data = await redis.get(key);
+  if (!data) return null;
+  if (typeof data === "string") return JSON.parse(data) as Session;
+  return data as Session;
 }
 
-export function createSession(url: string, title?: string): Session {
-  loadFromFile();
+async function redisSet(key: string, value: Session): Promise<void> {
+  const redis = await getRedisClient();
+  // 90日で自動削除
+  await redis.set(key, JSON.stringify(value), { ex: 60 * 60 * 24 * 90 });
+}
+
+export async function createSession(
+  url: string,
+  title?: string
+): Promise<Session> {
   const id = generateId();
   const session: Session = {
     id,
@@ -60,22 +66,27 @@ export function createSession(url: string, title?: string): Session {
     comments: [],
     createdAt: new Date().toISOString(),
   };
-  sessions.set(id, session);
-  saveToFile();
+  if (isRedisConfigured) {
+    await redisSet(`session:${id}`, session);
+  } else {
+    memoryStore.set(id, session);
+  }
   return session;
 }
 
-export function getSession(id: string): Session | undefined {
-  loadFromFile();
-  return sessions.get(id);
+export async function getSession(id: string): Promise<Session | undefined> {
+  if (isRedisConfigured) {
+    const data = await redisGet(`session:${id}`);
+    return data ?? undefined;
+  }
+  return memoryStore.get(id);
 }
 
-export function addComment(
+export async function addComment(
   sessionId: string,
   comment: Omit<Comment, "id" | "createdAt">
-): Comment | null {
-  loadFromFile();
-  const session = sessions.get(sessionId);
+): Promise<Comment | null> {
+  const session = await getSession(sessionId);
   if (!session) return null;
   const newComment: Comment = {
     ...comment,
@@ -83,6 +94,10 @@ export function addComment(
     createdAt: new Date().toISOString(),
   };
   session.comments.push(newComment);
-  saveToFile();
+  if (isRedisConfigured) {
+    await redisSet(`session:${sessionId}`, session);
+  } else {
+    memoryStore.set(sessionId, session);
+  }
   return newComment;
 }

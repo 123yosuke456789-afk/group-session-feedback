@@ -20,7 +20,7 @@ export async function POST(
         { status: 400 }
       );
     }
-    const comment = addComment(id, {
+    const comment = await addComment(id, {
       x,
       y,
       text: text.trim(),
